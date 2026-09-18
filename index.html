@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Math Arcade: Squares & Square Roots</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Retro Arcade Vibe -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;600;700&family=Cairo:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-cyan: #00f3ff;
+            --neon-magenta: #ff0055;
+            --neon-yellow: #ffe600;
+            --neon-green: #00ff66;
+            --bg-dark: #090a10;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            font-family: 'Rajdhani', sans-serif;
+            color: #ffffff;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .font-arcade {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        .lang-ar {
+            font-family: 'Cairo', sans-serif;
+        }
+
+        /* Neon Glow Effects */
+        .glow-cyan {
+            text-shadow: 0 0 8px var(--neon-cyan), 0 0 20px var(--neon-cyan);
+        }
+        .glow-magenta {
+            text-shadow: 0 0 8px var(--neon-magenta), 0 0 20px var(--neon-magenta);
+        }
+        .glow-yellow {
+            text-shadow: 0 0 8px var(--neon-yellow), 0 0 20px var(--neon-yellow);
+        }
+
+        .border-glow-cyan {
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4), inset 0 0 15px rgba(0, 243, 255, 0.2);
+            border-color: var(--neon-cyan);
+        }
+        .border-glow-magenta {
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.4), inset 0 0 15px rgba(255, 0, 85, 0.2);
+            border-color: var(--neon-magenta);
+        }
+
+        .btn-arcade {
+            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-arcade:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.25);
+        }
+        .btn-arcade:active {
+            transform: translateY(2px);
+        }
+
+        /* Scanline Overlay for Arcade Cabinet Feel */
+        .scanlines {
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%, 
+                rgba(0, 0, 0, 0.35) 50%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        /* Target Accuracy Meter Gradient */
+        .meter-bg {
+            background: linear-gradient(90deg, #ff0055 0%, #ffe600 35%, #00ff66 50%, #ffe600 65%, #ff0055 100%);
+        }
+
+        /* Floating Score Text Animation */
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.3); }
+        }
+        .animate-score-popup {
+            animation: floatUp 0.8s ease-out forwards;
+        }
+
+        /* RTL specific tweaks */
+        [dir="rtl"] .rtl-flip {
+            transform: scaleX(-1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative bg-slate-950 text-slate-100">
+
+    <div class="fixed inset-0 scanlines z-40"></div>
+    <div id="popupContainer" class="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
+
+    <!-- TOP GLOBAL CONTROLS BAR -->
+    <header class="relative z-30 bg-slate-900/90 border-b-2 border-cyan-500/50 p-3 sm:p-4 backdrop-blur-md">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            
+            <!-- Logo / Title -->
+            <div class="flex items-center space-x-3 rtl:space-x-reverse cursor-pointer" onclick="showScreen('menuScreen')">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-fuchsia-600 flex items-center justify-center font-arcade text-lg text-black font-extrabold shadow-lg shadow-cyan-500/50">
+                    2²
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold font-arcade tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-fuchsia-400 to-yellow-400 glow-cyan">
+                        SQUARE CRAFT
+                    </h1>
+                    <p class="text-xs text-slate-400 font-semibold" data-i18n="tagline">Grade 8 Math Review Arcade</p>
+                </div>
+            </div>
+
+            <!-- Global Action Controls -->
+            <div class="flex items-center space-x-2 sm:space-x-4 rtl:space-x-reverse">
+                
+                <!-- Volume / Audio Toggle -->
+                <div class="flex items-center bg-slate-800/80 rounded-xl p-1.5 border border-slate-700">
+                    <button id="audioToggleBtn" onclick="toggleAudio()" class="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-cyan-400 transition flex items-center gap-1.5 text-xs font-bold">
+                        <span id="audioIcon">🔊</span>
+                        <span id="audioStatusText" class="hidden sm:inline">ON</span>
+                    </button>
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.3" oninput="setVolume(this.value)" class="w-16 sm:w-20 accent-cyan-400 ml-2 cursor-pointer">
+                </div>
+
+                <!-- Language Selector -->
+                <div class="bg-slate-800/80 rounded-xl p-1 border border-slate-700">
+                    <select id="langSelect" onchange="changeLanguage(this.value)" class="bg-slate-900 text-yellow-400 text-xs font-bold rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-yellow-400 cursor-pointer">
+                        <option value="en">English 🇨🇦</option>
+                        <option value="fr">Français 🇫🇷</option>
+                        <option value="ar">العربية 🇸🇦</option>
+                    </select>
+                </div>
+
+                <!-- Help Button -->
+                <button onclick="toggleHelpModal(true)" class="btn-arcade px-3 py-1.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-600 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-extrabold text-sm flex items-center gap-1 shadow-lg shadow-yellow-500/20">
+                    <span class="font-arcade text-xs">?</span>
+                    <span data-i18n="helpBtn">HELP</span>
+                </button>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT VIEW CANVAS -->
+    <main class="relative z-10 flex-grow max-w-5xl w-full mx-auto p-4 flex items-center justify-center">
+
+        <!-- ================= MAIN MENU SCREEN ================= -->
+        <section id="menuScreen" class="w-full space-y-8 py-4">
+            
+            <div class="text-center space-y-3">
+                <span class="inline-block px-4 py-1.5 rounded-full text-xs font-arcade bg-fuchsia-950/80 text-fuchsia-400 border border-fuchsia-500/50 uppercase tracking-widest animate-pulse">
+                    ⚡ Grade 8 Math Challenge (1 - 400) ⚡
+                </span>
+                <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-100" data-i18n="menuTitle">
+                    SELECT YOUR GAME MODE
+                </h2>
+                <p class="text-slate-400 max-w-xl mx-auto text-sm sm:text-base" data-i18n="menuSubtitle">
+                    Master perfect squares, square roots, and decimal estimations with interactive retro arcade challenges!
+                </p>
+            </div>
+
+            <!-- Game Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Mode 1: Perfect Squares Speed Flashcards -->
+                <div class="btn-arcade bg-slate-900/90 rounded-2xl p-6 border-2 border-cyan-500/60 hover:border-cyan-400 flex flex-col justify-between space-y-4 shadow-xl shadow-cyan-950/40 relative group">
+                    <div class="absolute -top-3 right-4 bg-cyan-500 text-slate-950 text-xs font-arcade px-2 py-0.5 rounded font-bold">
+                        MODE 1
+                    </div>
+                    <div>
+                        <div class="text-4xl mb-3">⚡</div>
+                        <h3 class="text-xl font-bold text-cyan-400 group-hover:text-cyan-300" data-i18n="mode1Title">
+                            Perfect Squares Master
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed" data-i18n="mode1Desc">
+                            Speed practice & arcade quiz for perfect squares (1²=1) to (20²=400) and square roots (√400=20). Build combo streaks!
+                        </p>
+                    </div>
+                    <button onclick="startMode1()" class="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm tracking-wide transition shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2">
+                        <span data-i18n="startBtn">START GAME</span>
+                        <span>→</span>
+                    </button>
+                </div>
+
+                <!-- Mode 2: Square Root Decimal Estimator -->
+                <div class="btn-arcade bg-slate-900/90 rounded-2xl p-6 border-2 border-fuchsia-500/60 hover:border-fuchsia-400 flex flex-col justify-between space-y-4 shadow-xl shadow-fuchsia-950/40 relative group">
+                    <div class="absolute -top-3 right-4 bg-fuchsia-500 text-slate-950 text-xs font-arcade px-2 py-0.5 rounded font-bold">
+                        MODE 2
+                    </div>
+                    <div>
+                        <div class="text-4xl mb-3">🎯</div>
+                        <h3 class="text-xl font-bold text-fuchsia-400 group-hover:text-fuchsia-300" data-i18n="mode2Title">
+                            Square Root Estimator
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed" data-i18n="mode2Desc">
+                            Estimate non-perfect square roots! Find bounding whole numbers, then pinpoint to 1 decimal place with target precision.
+                        </p>
+                    </div>
+                    <button onclick="startMode2()" class="w-full py-3 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-slate-950 font-bold text-sm tracking-wide transition shadow-lg shadow-fuchsia-500/30 flex items-center justify-center gap-2">
+                        <span data-i18n="startBtn">START GAME</span>
+                        <span>→</span>
+                    </button>
+                </div>
+
+                <!-- Mode 3: Boss Challenge (Timed Mixed Battle) -->
+                <div class="btn-arcade bg-slate-900/90 rounded-2xl p-6 border-2 border-yellow-500/60 hover:border-yellow-400 flex flex-col justify-between space-y-4 shadow-xl shadow-yellow-950/40 relative group">
+                    <div class="absolute -top-3 right-4 bg-yellow-400 text-slate-950 text-xs font-arcade px-2 py-0.5 rounded font-bold">
+                        BOSS STAGE
+                    </div>
+                    <div>
+                        <div class="text-4xl mb-3">👾</div>
+                        <h3 class="text-xl font-bold text-yellow-400 group-hover:text-yellow-300" data-i18n="mode3Title">
+                            Arcade Boss Rush
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-2 leading-relaxed" data-i18n="mode3Desc">
+                            60-second timed blitz mixing squares, roots, and fast decimal bounds! Set the local arcade High Score record!
+                        </p>
+                    </div>
+                    <button onclick="startBossRush()" class="w-full py-3 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-sm tracking-wide transition shadow-lg shadow-yellow-400/30 flex items-center justify-center gap-2">
+                        <span data-i18n="startBtn">START GAME</span>
+                        <span>→</span>
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- Arcade High Scores & Stats Bar -->
+            <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs font-bold">
+                <div class="flex items-center gap-2 text-cyan-400">
+                    <span>🏆 <span data-i18n="highScore">High Score</span>:</span>
+                    <span id="globalHighScore" class="font-arcade text-lg text-yellow-400">0</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-400">
+                    <span>⭐ <span data-i18n="totalSolved">Questions Solved</span>:</span>
+                    <span id="globalTotalSolved" class="font-arcade text-slate-200 text-sm">0</span>
+                </div>
+                <button onclick="resetStats()" class="text-slate-500 hover:text-red-400 underline text-xs">
+                    <span data-i18n="resetData">Reset Arcade Data</span>
+                </button>
+            </div>
+
+        </section>
+
+        <!-- ================= STREAMING_CHUNK:Building Game Mode 1 UI... ================= -->
+        <!-- MODE 1: PERFECT SQUARES & ROOTS SPEED FLASHCARDS & QUIZ -->
+        <section id="mode1Screen" class="w-full hidden space-y-6 max-w-2xl">
+            
+            <!-- Game HUD Header -->
+            <div class="bg-slate-900/90 border border-cyan-500/40 rounded-2xl p-4 flex items-center justify-between shadow-lg">
+                <button onclick="showScreen('menuScreen')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
+                    ← <span data-i18n="exitBtn">Menu</span>
+                </button>
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="score">SCORE</div>
+                        <div id="m1Score" class="font-arcade text-xl text-yellow-400">0</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="streak">COMBO</div>
+                        <div id="m1Streak" class="font-arcade text-xl text-cyan-400">0x</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Cabinet Card -->
+            <div class="bg-slate-900/95 border-2 border-cyan-500 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl shadow-cyan-950/50 relative overflow-hidden">
+                <div id="m1StreakBadge" class="hidden absolute top-4 right-4 bg-gradient-to-r from-yellow-400 to-amber-500 text-slate-950 text-xs font-arcade px-3 py-1 rounded-full font-black animate-bounce">
+                    HYPER 5X!
+                </div>
+
+                <div class="space-y-2">
+                    <span id="m1CategoryTag" class="text-xs font-bold text-cyan-400 tracking-widest uppercase">
+                        PERFECT SQUARE
+                    </span>
+                    <div id="m1QuestionText" class="text-4xl sm:text-6xl font-extrabold text-slate-100 font-arcade glow-cyan py-4">
+                        12² = ?
+                    </div>
+                </div>
+
+                <!-- Multiple Choice Grid -->
+                <div id="m1OptionsGrid" class="grid grid-cols-2 gap-4 pt-2">
+                    <!-- Dynamic option buttons inserted via JS -->
+                </div>
+
+                <!-- Explanation Feedback Box -->
+                <div id="m1Feedback" class="hidden p-4 rounded-xl text-sm font-bold bg-slate-800/80 border text-slate-200"></div>
+            </div>
+
+        </section>
+
+        <!-- ================= STREAMING_CHUNK:Building Game Mode 2 UI... ================= -->
+        <!-- MODE 2: NON-PERFECT SQUARE ROOT ESTIMATOR -->
+        <section id="mode2Screen" class="w-full hidden space-y-6 max-w-2xl">
+            
+            <!-- Game HUD Header -->
+            <div class="bg-slate-900/90 border border-fuchsia-500/40 rounded-2xl p-4 flex items-center justify-between shadow-lg">
+                <button onclick="showScreen('menuScreen')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
+                    ← <span data-i18n="exitBtn">Menu</span>
+                </button>
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="score">SCORE</div>
+                        <div id="m2Score" class="font-arcade text-xl text-yellow-400">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Question & Multi-step Estimator Container -->
+            <div class="bg-slate-900/95 border-2 border-fuchsia-500 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl shadow-fuchsia-950/50">
+                
+                <div class="space-y-1">
+                    <span class="text-xs font-bold text-fuchsia-400 tracking-widest uppercase" data-i18n="m2Tag">
+                        NON-PERFECT SQUARE ESTIMATOR
+                    </span>
+                    <h3 id="m2Prompt" class="text-4xl sm:text-5xl font-extrabold text-slate-100 font-arcade glow-magenta py-2">
+                        √50 = ?
+                    </h3>
+                </div>
+
+                <!-- STEP A: SELECT BOUNDING WHOLE NUMBERS -->
+                <div id="m2StepA" class="space-y-4 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                    <p class="text-sm font-bold text-slate-300" data-i18n="m2StepATitle">
+                        STEP 1: Which two whole numbers does this square root lie between?
+                    </p>
+                    <div class="flex items-center justify-center gap-3">
+                        <select id="m2LowerBound" class="bg-slate-800 border-2 border-fuchsia-500 text-yellow-400 font-arcade text-lg p-2 rounded-xl focus:outline-none cursor-pointer"></select>
+                        <span class="font-bold text-slate-400 text-lg">&lt; <span id="m2RootSymbol">√50</span> &lt;</span>
+                        <select id="m2UpperBound" class="bg-slate-800 border-2 border-fuchsia-500 text-yellow-400 font-arcade text-lg p-2 rounded-xl focus:outline-none cursor-pointer"></select>
+                    </div>
+                    <button onclick="m2VerifyStepA()" class="btn-arcade px-6 py-2.5 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-slate-950 font-bold text-xs uppercase tracking-wider">
+                        <span data-i18n="confirmBounds">Confirm Bounds</span>
+                    </button>
+                </div>
+
+                <!-- STEP B: DECIMAL ESTIMATE SLIDER -->
+                <div id="m2StepB" class="hidden space-y-6 bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
+                    <p class="text-sm font-bold text-slate-300" data-i18n="m2StepBTitle">
+                        STEP 2: Estimate to 1 decimal place!
+                    </p>
+
+                    <!-- Target / Selected display -->
+                    <div class="text-center">
+                        <span class="text-xs text-slate-400 block mb-1" data-i18n="yourEstimate">YOUR ESTIMATE</span>
+                        <span id="m2EstimateVal" class="text-4xl font-extrabold font-arcade text-yellow-400 glow-yellow">7.0</span>
+                    </div>
+
+                    <!-- Slider Control -->
+                    <div class="space-y-2 max-w-md mx-auto">
+                        <input type="range" id="m2Slider" min="1" max="20" step="0.1" value="7.0" oninput="m2UpdateEstimateDisplay(this.value)" class="w-full accent-fuchsia-500 h-3 bg-slate-800 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-xs font-bold text-slate-500 font-arcade">
+                            <span id="m2SliderMin">7.0</span>
+                            <span id="m2SliderMax">8.0</span>
+                        </div>
+                    </div>
+
+                    <button onclick="m2SubmitFinalEstimate()" class="btn-arcade px-8 py-3 rounded-xl bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-300 hover:to-amber-400 text-slate-950 font-extrabold text-sm uppercase tracking-wider shadow-lg shadow-yellow-500/20">
+                        <span data-i18n="submitEstimate">SUBMIT ESTIMATE</span>
+                    </button>
+                </div>
+
+                <!-- Step-by-Step Mathematical Explanation Break-down -->
+                <div id="m2Breakdown" class="hidden p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left space-y-3">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span id="m2AccuracyBadge" class="text-xs font-arcade font-bold px-2.5 py-1 rounded">
+                            BULLSEYE! +100 PTS
+                        </span>
+                        <span id="m2ExactValue" class="text-xs text-slate-400 font-bold">
+                            Exact: 7.071...
+                        </span>
+                    </div>
+                    <div id="m2BreakdownText" class="text-xs sm:text-sm text-slate-300 space-y-1.5 leading-relaxed"></div>
+                    <button onclick="m2NextQuestion()" class="w-full py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider">
+                        <span data-i18n="nextQuestion">Next Question</span> →
+                    </button>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- ================= STREAMING_CHUNK:Building Boss Rush Mode 3 UI... ================= -->
+        <!-- MODE 3: ARCADE BOSS RUSH (TIMED BLITZ) -->
+        <section id="mode3Screen" class="w-full hidden space-y-6 max-w-2xl">
+            
+            <!-- Game HUD Header -->
+            <div class="bg-slate-900/90 border border-yellow-500/40 rounded-2xl p-4 flex items-center justify-between shadow-lg">
+                <button onclick="showScreen('menuScreen'); clearInterval(bossTimerInterval);" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
+                    ← <span data-i18n="exitBtn">Menu</span>
+                </button>
+                <div class="flex items-center gap-6">
+                    <div class="text-center">
+                        <div class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="timeLeft">TIME LEFT</div>
+                        <div id="bossTimer" class="font-arcade text-xl text-red-400">60s</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-[10px] text-slate-400 uppercase font-bold" data-i18n="score">SCORE</div>
+                        <div id="bossScore" class="font-arcade text-xl text-yellow-400">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Question Cabinet Card -->
+            <div class="bg-slate-900/95 border-2 border-yellow-500 rounded-3xl p-6 sm:p-8 text-center space-y-6 shadow-2xl shadow-yellow-950/50">
+                <div id="bossQuestionCard" class="space-y-4">
+                    <span class="text-xs font-bold text-yellow-400 tracking-widest uppercase">
+                        👾 BOSS SPEED RUN
+                    </span>
+                    <div id="bossQuestionText" class="text-3xl sm:text-5xl font-extrabold text-slate-100 font-arcade glow-yellow py-3">
+                        √324 = ?
+                    </div>
+                    <div id="bossOptionsGrid" class="grid grid-cols-2 gap-4"></div>
+                </div>
+
+                <!-- Game Over Summary Modal State -->
+                <div id="bossGameOver" class="hidden space-y-4 text-center py-4">
+                    <div class="text-4xl mb-2">🏆</div>
+                    <h3 class="text-2xl font-bold text-yellow-400 font-arcade" data-i18n="gameOver">TIME'S UP!</h3>
+                    <p class="text-sm text-slate-300">
+                        <span data-i18n="finalScore">Final Score</span>: <span id="bossFinalScore" class="font-arcade text-yellow-400 text-lg">0</span>
+                    </p>
+                    <button onclick="startBossRush()" class="btn-arcade px-6 py-2.5 rounded-xl bg-yellow-400 text-slate-950 font-bold text-xs uppercase tracking-wider">
+                        <span data-i18n="playAgain">Play Again</span>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- GLOBAL TRILINGUAL HELP MODAL -->
+    <div id="helpModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border-2 border-yellow-400 rounded-3xl max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 space-y-6 shadow-2xl shadow-yellow-500/20 relative text-slate-100">
+            
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-yellow-400 font-arcade text-xl">?</span>
+                    <h3 class="text-xl font-bold text-yellow-400" data-i18n="helpTitle">Squares & Square Roots Guide</h3>
+                </div>
+                <button onclick="toggleHelpModal(false)" class="text-slate-400 hover:text-white font-bold text-xl px-2">✕</button>
+            </div>
+
+            <!-- Help Topic 1: Perfect Squares -->
+            <div class="space-y-2 bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+                <h4 class="font-bold text-cyan-400 text-base" data-i18n="helpTopic1Title">1. Perfect Squares (1 to 400)</h4>
+                <p class="text-xs text-slate-300 leading-relaxed" data-i18n="helpTopic1Desc">
+                    A perfect square is the product of a whole number multiplied by itself.
+                </p>
+                <div class="bg-slate-900 p-2.5 rounded-xl text-xs font-mono text-cyan-300">
+                    Example: 15 × 15 = 15² = 225 <br>
+                    Square Root: √225 = 15
+                </div>
+            </div>
+
+            <!-- Help Topic 2: Estimating Non-Perfect Squares -->
+            <div class="space-y-2 bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+                <h4 class="font-bold text-fuchsia-400 text-base" data-i18n="helpTopic2Title">2. Estimating Non-Perfect Squares</h4>
+                <p class="text-xs text-slate-300 leading-relaxed" data-i18n="helpTopic2Desc">
+                    To estimate square roots like √50:
+                </p>
+                <ol class="list-decimal list-inside text-xs text-slate-300 space-y-1.5 pl-2">
+                    <li><strong class="text-fuchsia-300" data-i18n="helpStep1">Find Perfect Squares Around It:</strong> 49 (7²) and 64 (8²). So √50 is between 7 and 8.</li>
+                    <li><strong class="text-fuchsia-300" data-i18n="helpStep2">Estimate the Decimal:</strong> 50 is much closer to 49 than 64, so √50 ≈ 7.1.</li>
+                </ol>
+            </div>
+
+            <!-- Quick Table Reference (1-20) -->
+            <div class="space-y-2">
+                <h4 class="font-bold text-yellow-400 text-xs uppercase" data-i18n="cheatSheet">Quick Reference (1² to 20²)</h4>
+                <div class="grid grid-cols-4 sm:grid-cols-5 gap-1.5 text-[11px] font-mono text-center">
+                    <div class="bg-slate-800 p-1 rounded">1² = 1</div>
+                    <div class="bg-slate-800 p-1 rounded">2² = 4</div>
+                    <div class="bg-slate-800 p-1 rounded">3² = 9</div>
+                    <div class="bg-slate-800 p-1 rounded">4² = 16</div>
+                    <div class="bg-slate-800 p-1 rounded">5² = 25</div>
+                    <div class="bg-slate-800 p-1 rounded">6² = 36</div>
+                    <div class="bg-slate-800 p-1 rounded">7² = 49</div>
+                    <div class="bg-slate-800 p-1 rounded">8² = 64</div>
+                    <div class="bg-slate-800 p-1 rounded">9² = 81</div>
+                    <div class="bg-slate-800 p-1 rounded">10² = 100</div>
+                    <div class="bg-slate-800 p-1 rounded">11² = 121</div>
+                    <div class="bg-slate-800 p-1 rounded">12² = 144</div>
+                    <div class="bg-slate-800 p-1 rounded">13² = 169</div>
+                    <div class="bg-slate-800 p-1 rounded">14² = 196</div>
+                    <div class="bg-slate-800 p-1 rounded">15² = 225</div>
+                    <div class="bg-slate-800 p-1 rounded">16² = 256</div>
+                    <div class="bg-slate-800 p-1 rounded">17² = 289</div>
+                    <div class="bg-slate-800 p-1 rounded">18² = 324</div>
+                    <div class="bg-slate-800 p-1 rounded">19² = 361</div>
+                    <div class="bg-slate-800 p-1 rounded">20² = 400</div>
+                </div>
+            </div>
+
+            <button onclick="toggleHelpModal(false)" class="w-full py-3 rounded-xl bg-yellow-400 text-slate-950 font-bold text-xs uppercase tracking-wider">
+                <span data-i18n="closeBtn">Close Guide</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           WEB AUDIO API - SYNTH & SOUND EFFECT GENERATOR
+           ========================================================================== */
+        let audioCtx = null;
+        let isMuted = false;
+        let globalVolume = 0.3;
+        let synthBgmOsc = null;
+        let synthBgmGain = null;
+        let isBgmPlaying = false;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function setVolume(val) {
+            globalVolume = parseFloat(val);
+            if (synthBgmGain) {
+                synthBgmGain.gain.value = globalVolume * 0.15;
+            }
+        }
+
+        function toggleAudio() {
+            initAudio();
+            isMuted = !isMuted;
+            document.getElementById('audioStatusText').innerText = isMuted ? 'OFF' : 'ON';
+            document.getElementById('audioIcon').innerText = isMuted ? '🔇' : '🔊';
+
+            if (isMuted && isBgmPlaying) {
+                stopBGM();
+            } else if (!isMuted && !isBgmPlaying) {
+                startBGM();
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted) return;
+            initAudio();
+            
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'correct') {
+                // Success Arpeggio Boop
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.08); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.16); // G5
+                gain.gain.setValueAtTime(globalVolume * 0.4, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'wrong') {
+                // Wrong Low Buzz
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.25);
+                gain.gain.setValueAtTime(globalVolume * 0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } else if (type === 'click') {
+                // Short Retro Click
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(globalVolume * 0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'combo') {
+                // Combo High Fanfare
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.setValueAtTime(1174.66, now + 0.1);
+                gain.gain.setValueAtTime(globalVolume * 0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+            }
+        }
+
+        // Ambient Synth Wave Synth Loop
+        function startBGM() {
+            if (isMuted || isBgmPlaying) return;
+            initAudio();
+            try {
+                synthBgmOsc = audioCtx.createOscillator();
+                synthBgmGain = audioCtx.createGain();
+                synthBgmOsc.type = 'sine';
+                synthBgmOsc.frequency.setValueAtTime(110, audioCtx.currentTime); // A2 note
+                
+                synthBgmGain.gain.setValueAtTime(globalVolume * 0.1, audioCtx.currentTime);
+                synthBgmOsc.connect(synthBgmGain);
+                synthBgmGain.connect(audioCtx.destination);
+                
+                synthBgmOsc.start();
+                isBgmPlaying = true;
+            } catch (e) {
+                console.log("Audio autoplay prevented", e);
+            }
+        }
+
+        function stopBGM() {
+            if (synthBgmOsc) {
+                synthBgmOsc.stop();
+                synthBgmOsc = null;
+                isBgmPlaying = false;
+            }
+        }
+
+        /* ==========================================================================
+           STREAMING_CHUNK:Localization Dictionary (EN / FR / AR)...
+           ========================================================================== */
+        const translations = {
+            en: {
+                tagline: "Grade 8 Math Review Arcade",
+                helpBtn: "HELP",
+                menuTitle: "SELECT YOUR GAME MODE",
+                menuSubtitle: "Master perfect squares, square roots, and decimal estimations with interactive retro arcade challenges!",
+                mode1Title: "Perfect Squares Master",
+                mode1Desc: "Speed practice & arcade quiz for perfect squares (1²=1) to (20²=400) and square roots (√400=20). Build combo streaks!",
+                mode2Title: "Square Root Estimator",
+                mode2Desc: "Estimate non-perfect square roots! Find bounding whole numbers, then pinpoint to 1 decimal place with target precision.",
+                mode3Title: "Arcade Boss Rush",
+                mode3Desc: "60-second timed blitz mixing squares, roots, and fast decimal bounds! Set the local arcade High Score record!",
+                startBtn: "START GAME",
+                highScore: "High Score",
+                totalSolved: "Questions Solved",
+                resetData: "Reset Arcade Data",
+                score: "SCORE",
+                streak: "COMBO",
+                exitBtn: "Menu",
+                m2Tag: "NON-PERFECT SQUARE ESTIMATOR",
+                m2StepATitle: "STEP 1: Which two whole numbers does this square root lie between?",
+                confirmBounds: "Confirm Bounds",
+                m2StepBTitle: "STEP 2: Estimate to 1 decimal place!",
+                yourEstimate: "YOUR ESTIMATE",
+                submitEstimate: "SUBMIT ESTIMATE",
+                nextQuestion: "Next Question",
+                timeLeft: "TIME LEFT",
+                gameOver: "TIME'S UP!",
+                finalScore: "Final Score",
+                playAgain: "Play Again",
+                helpTitle: "Squares & Square Roots Guide",
+                helpTopic1Title: "1. Perfect Squares (1 to 400)",
+                helpTopic1Desc: "A perfect square is the product of a whole number multiplied by itself.",
+                helpTopic2Title: "2. Estimating Non-Perfect Squares",
+                helpTopic2Desc: "To estimate square roots like √50:",
+                helpStep1: "Find Perfect Squares Around It:",
+                helpStep2: "Estimate the Decimal:",
+                cheatSheet: "Quick Reference (1² to 20²)",
+                closeBtn: "Close Guide"
+            },
+            fr: {
+                tagline: "Arcade de Révision de Maths - 8e Année",
+                helpBtn: "AIDE",
+                menuTitle: "CHOISISSEZ VOTRE MODE DE JEU",
+                menuSubtitle: "Maîtrisez les carrés parfaits, les racines carrées et l'estimation décimale avec ces défis rétro!",
+                mode1Title: "Maître des Carrés Parfaits",
+                mode1Desc: "Pratique rapide pour carrés parfaits de 1²=1 à 20²=400 et racines carrées (√400=20). Accumulez les combos!",
+                mode2Title: "Estimateur de Racine Carrée",
+                mode2Desc: "Estimez les racines de nombres non parfaits! Trouvez les deux entiers, puis la valeur à 1 décimale près.",
+                mode3Title: "Défi Boss Arcade",
+                mode3Desc: "Chrono de 60s mélangeant carrés, racines et estimations! Établissez le meilleur score!",
+                startBtn: "JOUER",
+                highScore: "Meilleur Score",
+                totalSolved: "Questions Résolues",
+                resetData: "Réinitialiser",
+                score: "SCORE",
+                streak: "COMBO",
+                exitBtn: "Menu",
+                m2Tag: "ESTIMATEUR DE RACINE NON PARFAITE",
+                m2StepATitle: "ÉTAPE 1: Entre quels nombres entiers se trouve cette racine?",
+                confirmBounds: "Confirmer les Bornes",
+                m2StepBTitle: "ÉTAPE 2: Estimez à 1 décimale près!",
+                yourEstimate: "VOTRE ESTIMATION",
+                submitEstimate: "SOUMETTRE L'ESTIMATION",
+                nextQuestion: "Question Suivante",
+                timeLeft: "TEMPS RESTANT",
+                gameOver: "TEMPS ÉCOULÉ!",
+                finalScore: "Score Final",
+                playAgain: "Rejouer",
+                helpTitle: "Guide des Carrés et Racines",
+                helpTopic1Title: "1. Carrés Parfaits (1 à 400)",
+                helpTopic1Desc: "Un carré parfait est le produit d'un nombre entier multiplié par lui-même.",
+                helpTopic2Title: "2. Estimer une Racine Non Parfaite",
+                helpTopic2Desc: "Pour estimer une racine comme √50:",
+                helpStep1: "Encadrer par des Carrés Parfaits:",
+                helpStep2: "Estimer la Décimale:",
+                cheatSheet: "Référence Rapide (1² à 20²)",
+                closeBtn: "Fermer le Guide"
+            },
+            ar: {
+                tagline: "مراجعة الرياضيات للصف الثامن - أركيد",
+                helpBtn: "مساعدة",
+                menuTitle: "اختر نمط اللعبة",
+                menuSubtitle: "أتقن المربعات الكاملة، الجذور التربيعية، والتقدير العشري عبر تحديات أركيد تفاعلية!",
+                mode1Title: "خبير المربعات الكاملة",
+                mode1Desc: "تدريب سريع على المربعات الكاملة من 1²=1 إلى 20²=400 والجذور التربيعية. حقق مجموعات متتالية!",
+                mode2Title: "مقدّر الجذور التربيعية",
+                mode2Desc: "قدّر الجذور التربيعية للأعداد غير الكاملة! حدد العُددين الصحيحين ثم التقدير بدقة منزلة عشرية.",
+                mode3Title: "تحدي الزعيم السريع",
+                mode3Desc: "60 ثانية من الأسئلة السريعة المختلطة! حقق أعلى رقم قياسي في الأركيد!",
+                startBtn: "ابدأ اللعبة",
+                highScore: "أعلى نتيجة",
+                totalSolved: "الأسئلة المحلولة",
+                resetData: "إعادة ضبط",
+                score: "النتيجة",
+                streak: "المتتالية",
+                exitBtn: "القائمة",
+                m2Tag: "مقدّر الجذور غير الكاملة",
+                m2StepATitle: "الخطوة 1: بين أي عددين صحيحين يقع هذا الجذر؟",
+                confirmBounds: "تأكيد الحدود",
+                m2StepBTitle: "الخطوة 2: قدّر الإجابة لأقرب منزلة عشرية واحدة!",
+                yourEstimate: "تقَديرُك",
+                submitEstimate: "إرسال التقدير",
+                nextQuestion: "السؤال التالي",
+                timeLeft: "الوقت المتبقي",
+                gameOver: "انتهى الوقت!",
+                finalScore: "النتيجة النهائية",
+                playAgain: "العب مجدداً",
+                helpTitle: "دليل المربعات والجذور التربيعية",
+                helpTopic1Title: "1. المربعات الكاملة (1 إلى 400)",
+                helpTopic1Desc: "المربع الكامل هو حاصل ضرب عدد صحيح في نفسه.",
+                helpTopic2Title: "2. تقدير الجذور غير الكاملة",
+                helpTopic2Desc: "لتخمين جذر مثل √50:",
+                helpStep1: "إيجاد المربعات الكاملة المحيطة:",
+                helpStep2: "تقدير المنزلة العشرية:",
+                cheatSheet: "جدول المرجعية السريعة (1² إلى 20²)",
+                closeBtn: "إغلاق الدليل"
+            }
+        };
+
+        let currentLang = 'en';
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+            if (lang === 'ar') {
+                document.body.classList.add('lang-ar');
+            } else {
+                document.body.classList.remove('lang-ar');
+            }
+
+            // Update all elements with data-i18n attribute
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    el.innerText = translations[lang][key];
+                }
+            });
+        }
+
+        /* ==========================================================================
+           STREAMING_CHUNK:Global Game State & LocalStorage Management...
+           ========================================================================== */
+        let globalStats = {
+            highScore: 0,
+            totalSolved: 0
+        };
+
+        function loadStats() {
+            const saved = localStorage.getItem('square_craft_stats');
+            if (saved) {
+                globalStats = JSON.parse(saved);
+            }
+            updateStatsUI();
+        }
+
+        function saveStats() {
+            localStorage.setItem('square_craft_stats', JSON.stringify(globalStats));
+            updateStatsUI();
+        }
+
+        function updateStatsUI() {
+            document.getElementById('globalHighScore').innerText = globalStats.highScore;
+            document.getElementById('globalTotalSolved').innerText = globalStats.totalSolved;
+        }
+
+        function resetStats() {
+            if (confirm("Reset local score records?")) {
+                globalStats = { highScore: 0, totalSolved: 0 };
+                saveStats();
+            }
+        }
+
+        function showScreen(screenId) {
+            playSound('click');
+            ['menuScreen', 'mode1Screen', 'mode2Screen', 'mode3Screen'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function toggleHelpModal(show) {
+            playSound('click');
+            document.getElementById('helpModal').classList.toggle('hidden', !show);
+        }
+
+        function triggerScorePopup(text, colorClass = "text-yellow-400") {
+            const container = document.getElementById('popupContainer');
+            const popup = document.createElement('div');
+            popup.className = `absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-arcade text-3xl font-black ${colorClass} animate-score-popup pointer-events-none drop-shadow-lg`;
+            popup.innerText = text;
+            container.appendChild(popup);
+            setTimeout(() => popup.remove(), 800);
+        }
+
+        /* ==========================================================================
+           STREAMING_CHUNK:MODE 1 LOGIC (Perfect Squares & Roots Quiz)...
+           ========================================================================== */
+        let m1Score = 0;
+        let m1Streak = 0;
+        let m1CurrentQ = null;
+
+        const perfectSquaresMap = [
+            { n: 1, sq: 1 }, { n: 2, sq: 4 }, { n: 3, sq: 9 }, { n: 4, sq: 16 },
+            { n: 5, sq: 25 }, { n: 6, sq: 36 }, { n: 7, sq: 49 }, { n: 8, sq: 64 },
+            { n: 9, sq: 81 }, { n: 10, sq: 100 }, { n: 11, sq: 121 }, { n: 12, sq: 144 },
+            { n: 13, sq: 169 }, { n: 14, sq: 196 }, { n: 15, sq: 225 }, { n: 16, sq: 256 },
+            { n: 17, sq: 289 }, { n: 18, sq: 324 }, { n: 19, sq: 361 }, { n: 20, sq: 400 }
+        ];
+
+        function startMode1() {
+            m1Score = 0;
+            m1Streak = 0;
+            updateMode1HUD();
+            showScreen('mode1Screen');
+            m1NextQuestion();
+        }
+
+        function updateMode1HUD() {
+            document.getElementById('m1Score').innerText = m1Score;
+            document.getElementById('m1Streak').innerText = m1Streak + 'x';
+            
+            const badge = document.getElementById('m1StreakBadge');
+            if (m1Streak >= 5) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function m1NextQuestion() {
+            document.getElementById('m1Feedback').classList.add('hidden');
+            const item = perfectSquaresMap[Math.floor(Math.random() * perfectSquaresMap.length)];
+            const type = Math.random() < 0.5 ? 'square' : 'root';
+
+            let qText = '';
+            let correctAns = 0;
+
+            if (type === 'square') {
+                qText = `${item.n}² = ?`;
+                correctAns = item.sq;
+            } else {
+                qText = `√${item.sq} = ?`;
+                correctAns = item.n;
+            }
+
+            m1CurrentQ = { item, type, correctAns };
+            document.getElementById('m1QuestionText').innerText = qText;
+
+            // Generate 4 Multiple Choice Distractors
+            let options = [correctAns];
+            while (options.length < 4) {
+                let offset = (Math.floor(Math.random() * 5) + 1) * (Math.random() < 0.5 ? 1 : -1);
+                let fake = type === 'square' ? Math.max(1, (item.n + offset) ** 2) : Math.max(1, item.n + offset);
+                if (!options.includes(fake) && fake <= 400) {
+                    options.push(fake);
+                }
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            // Render Option Buttons
+            const grid = document.getElementById('m1OptionsGrid');
+            grid.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "btn-arcade py-4 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-slate-700 text-cyan-300 font-arcade text-xl sm:text-2xl shadow-md";
+                btn.innerText = opt;
+                btn.onclick = () => m1SelectOption(opt, btn);
+                grid.appendChild(btn);
+            });
+        }
+
+        function m1SelectOption(selected, btnElement) {
+            const isCorrect = selected === m1CurrentQ.correctAns;
+            const feedback = document.getElementById('m1Feedback');
+
+            if (isCorrect) {
+                playSound('correct');
+                m1Streak++;
+                const pts = 100 * (m1Streak >= 5 ? 2 : 1);
+                m1Score += pts;
+                globalStats.totalSolved++;
+
+                if (m1Score > globalStats.highScore) {
+                    globalStats.highScore = m1Score;
+                }
+                saveStats();
+
+                triggerScorePopup(`+${pts}!`, 'text-cyan-400');
+                btnElement.classList.add('border-green-400', 'bg-green-950/50');
+
+                if (m1Streak % 5 === 0) playSound('combo');
+
+                setTimeout(m1NextQuestion, 600);
+            } else {
+                playSound('wrong');
+                m1Streak = 0;
+                btnElement.classList.add('border-red-500', 'bg-red-950/50');
+                
+                feedback.classList.remove('hidden');
+                feedback.innerHTML = `❌ ${m1CurrentQ.type === 'square' ? `${m1CurrentQ.item.n} × ${m1CurrentQ.item.n} = ${m1CurrentQ.item.sq}` : `√${m1CurrentQ.item.sq} = ${m1CurrentQ.item.n}`}`;
+
+                setTimeout(m1NextQuestion, 1600);
+            }
+            updateMode1HUD();
+        }
+
+        /* ==========================================================================
+           STREAMING_CHUNK:MODE 2 LOGIC (Non-Perfect Square Root Estimator)...
+           ========================================================================== */
+        let m2TargetNum = 50;
+        let m2ExactVal = 0;
+        let m2LowerExact = 7;
+        let m2UpperExact = 8;
+        let m2Score = 0;
+
+        function startMode2() {
+            m2Score = 0;
+            document.getElementById('m2Score').innerText = m2Score;
+            showScreen('mode2Screen');
+            m2SetupQuestion();
+        }
+
+        function m2SetupQuestion() {
+            // Pick a non-perfect square between 2 and 399
+            let num = Math.floor(Math.random() * 390) + 5;
+            while (Number.isInteger(Math.sqrt(num))) {
+                num = Math.floor(Math.random() * 390) + 5;
+            }
+
+            m2TargetNum = num;
+            m2ExactVal = Math.sqrt(num);
+            m2LowerExact = Math.floor(m2ExactVal);
+            m2UpperExact = Math.ceil(m2ExactVal);
+
+            document.getElementById('m2Prompt').innerText = `√${m2TargetNum} = ?`;
+            document.getElementById('m2RootSymbol').innerText = `√${m2TargetNum}`;
+
+            // Reset UI Visibility
+            document.getElementById('m2StepA').classList.remove('hidden');
+            document.getElementById('m2StepB').classList.add('hidden');
+            document.getElementById('m2Breakdown').classList.add('hidden');
+
+            // Populate Bounding Select Dropdowns (1 to 20)
+            const selLower = document.getElementById('m2LowerBound');
+            const selUpper = document.getElementById('m2UpperBound');
+            selLower.innerHTML = '';
+            selUpper.innerHTML = '';
+
+            for (let i = 1; i <= 20; i++) {
+                selLower.innerHTML += `<option value="${i}">${i}</option>`;
+                selUpper.innerHTML += `<option value="${i}">${i}</option>`;
+            }
+            selLower.value = 1;
+            selUpper.value = 2;
+        }
+
+        function m2VerifyStepA() {
+            const userLower = parseInt(document.getElementById('m2LowerBound').value);
+            const userUpper = parseInt(document.getElementById('m2UpperBound').value);
+
+            if (userLower === m2LowerExact && userUpper === m2UpperExact) {
+                playSound('correct');
+                document.getElementById('m2StepA').classList.add('hidden');
+                document.getElementById('m2StepB').classList.remove('hidden');
+
+                // Configure Slider Limits based on bounds
+                const slider = document.getElementById('m2Slider');
+                slider.min = userLower;
+                slider.max = userUpper;
+                slider.value = ((userLower + userUpper) / 2).toFixed(1);
+                
+                document.getElementById('m2SliderMin').innerText = userLower.toFixed(1);
+                document.getElementById('m2SliderMax').innerText = userUpper.toFixed(1);
+                m2UpdateEstimateDisplay(slider.value);
+            } else {
+                playSound('wrong');
+                alert(`Hint: Think of perfect squares near ${m2TargetNum}! (${userLower}² = ${userLower**2}, ${userUpper}² = ${userUpper**2})`);
+            }
+        }
+
+        function m2UpdateEstimateDisplay(val) {
+            document.getElementById('m2EstimateVal').innerText = parseFloat(val).toFixed(1);
+        }
+
+        function m2SubmitFinalEstimate() {
+            const userEst = parseFloat(document.getElementById('m2Slider').value);
+            const diff = Math.abs(userEst - m2ExactVal);
+
+            document.getElementById('m2StepB').classList.add('hidden');
+            document.getElementById('m2Breakdown').classList.remove('hidden');
+
+            const badge = document.getElementById('m2AccuracyBadge');
+            let pts = 0;
+
+            if (diff <= 0.15) {
+                playSound('combo');
+                pts = 150;
+                badge.innerText = "🎯 BULLSEYE (+150 PTS)";
+                badge.className = "text-xs font-arcade font-bold px-2.5 py-1 rounded bg-green-500 text-slate-950";
+            } else if (diff <= 0.35) {
+                playSound('correct');
+                pts = 100;
+                badge.innerText = "⭐ GREAT ESTIMATE (+100 PTS)";
+                badge.className = "text-xs font-arcade font-bold px-2.5 py-1 rounded bg-yellow-400 text-slate-950";
+            } else {
+                playSound('click');
+                pts = 50;
+                badge.innerText = "👍 CLOSE ENOUGH (+50 PTS)";
+                badge.className = "text-xs font-arcade font-bold px-2.5 py-1 rounded bg-cyan-500 text-slate-950";
+            }
+
+            m2Score += pts;
+            document.getElementById('m2Score').innerText = m2Score;
+            globalStats.totalSolved++;
+            if (m2Score > globalStats.highScore) globalStats.highScore = m2Score;
+            saveStats();
+
+            document.getElementById('m2ExactValue').innerText = `Exact: ${m2ExactVal.toFixed(3)}...`;
+
+            // Dynamic Mathematical Breakdown Text
+            const lowerSq = m2LowerExact ** 2;
+            const upperSq = m2UpperExact ** 2;
+            const text = `
+                • <strong>${m2LowerExact}² = ${lowerSq}</strong> and <strong>${m2UpperExact}² = ${upperSq}</strong>.<br>
+                • ${m2TargetNum} is between ${lowerSq} and ${upperSq}.<br>
+                • Your estimate: <strong>${userEst.toFixed(1)}</strong> (Calculated square: ${(userEst**2).toFixed(1)}).
+            `;
+            document.getElementById('m2BreakdownText').innerHTML = text;
+        }
+
+        function m2NextQuestion() {
+            playSound('click');
+            m2SetupQuestion();
+        }
+
+        /* ==========================================================================
+           STREAMING_CHUNK:MODE 3 LOGIC (Boss Rush Timed Blitz)...
+           ========================================================================== */
+        let bossScore = 0;
+        let bossTimeLeft = 60;
+        let bossTimerInterval = null;
+        let bossCurrentAnswer = 0;
+
+        function startBossRush() {
+            bossScore = 0;
+            bossTimeLeft = 60;
+            document.getElementById('bossScore').innerText = bossScore;
+            document.getElementById('bossTimer').innerText = bossTimeLeft + 's';
+            
+            document.getElementById('bossQuestionCard').classList.remove('hidden');
+            document.getElementById('bossGameOver').classList.add('hidden');
+
+            showScreen('mode3Screen');
+
+            clearInterval(bossTimerInterval);
+            bossTimerInterval = setInterval(() => {
+                bossTimeLeft--;
+                document.getElementById('bossTimer').innerText = bossTimeLeft + 's';
+                if (bossTimeLeft <= 0) {
+                    endBossRush();
+                }
+            }, 1000);
+
+            bossNextQuestion();
+        }
+
+        function bossNextQuestion() {
+            const item = perfectSquaresMap[Math.floor(Math.random() * perfectSquaresMap.length)];
+            const type = Math.random() < 0.5 ? 'square' : 'root';
+
+            if (type === 'square') {
+                document.getElementById('bossQuestionText').innerText = `${item.n}² = ?`;
+                bossCurrentAnswer = item.sq;
+            } else {
+                document.getElementById('bossQuestionText').innerText = `√${item.sq} = ?`;
+                bossCurrentAnswer = item.n;
+            }
+
+            let options = [bossCurrentAnswer];
+            while (options.length < 4) {
+                let fake = bossCurrentAnswer + (Math.floor(Math.random() * 6) - 3);
+                if (fake > 0 && !options.includes(fake)) options.push(fake);
+            }
+            options.sort(() => Math.random() - 0.5);
+
+            const grid = document.getElementById('bossOptionsGrid');
+            grid.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = "btn-arcade py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 border-2 border-yellow-500/50 text-yellow-300 font-arcade text-xl";
+                btn.innerText = opt;
+                btn.onclick = () => {
+                    if (opt === bossCurrentAnswer) {
+                        playSound('correct');
+                        bossScore += 200;
+                        globalStats.totalSolved++;
+                        document.getElementById('bossScore').innerText = bossScore;
+                        triggerScorePopup('+200', 'text-yellow-400');
+                        bossNextQuestion();
+                    } else {
+                        playSound('wrong');
+                        bossNextQuestion();
+                    }
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function endBossRush() {
+            clearInterval(bossTimerInterval);
+            playSound('combo');
+            if (bossScore > globalStats.highScore) {
+                globalStats.highScore = bossScore;
+            }
+            saveStats();
+
+            document.getElementById('bossQuestionCard').classList.add('hidden');
+            document.getElementById('bossGameOver').classList.remove('hidden');
+            document.getElementById('bossFinalScore').innerText = bossScore;
+        }
+
+        window.onload = function() {
+            loadStats();
+            changeLanguage('en');
+        };
+    </script>
+</body>
+</html>
